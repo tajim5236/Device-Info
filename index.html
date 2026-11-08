@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IMEI Tracker — Device Info Share</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:linear-gradient(140deg,#101827,#172b46);color:#eef5ff;font:16px Arial,sans-serif;display:grid;place-items:center;padding:20px}
+main{width:min(100%,430px);background:#1d2b40;border:1px solid #354966;border-radius:22px;padding:28px;box-shadow:0 20px 60px #0006}
+h1{margin:0 0 8px;font-size:27px}p{color:#b9c8da;line-height:1.5}.tag{color:#5eead4;font-size:12px;letter-spacing:2px;font-weight:bold}
+label{display:block;margin:18px 0 8px;color:#dce8f7}input[type=text]{width:100%;padding:14px;border-radius:10px;border:1px solid #50647e;background:#101c2d;color:white;font-size:16px}
+.consent{display:flex;gap:10px;align-items:flex-start;font-size:14px;margin:18px 0}.consent input{margin-top:3px}
+button{width:100%;padding:14px;border:0;border-radius:10px;background:#25c6a5;color:#06251f;font-size:16px;font-weight:bold}
+#status{min-height:24px;margin-top:14px;font-size:14px}
+small{display:block;color:#94a9c2;line-height:1.5;margin-top:18px}
+</style></head>
+<body><main>
+<div class="tag">CONSENT-BASED DEVICE INFO</div>
+<h1>IMEI Tracker</h1>
+<p>Share available device and browser information with the site owner. This page cannot read your IMEI or track your live location.</p>
+<label for="imei">IMEI (optional — checked on this device only)</label>
+<input id="imei" type="text" inputmode="numeric" maxlength="17" placeholder="Enter IMEI (not uploaded)">
+<div class="consent"><input id="agree" type="checkbox"><label for="agree" style="margin:0">I agree to send the device and browser information listed above to the site owner.</label></div>
+<button id="send">Send with consent</button>
+<div id="status" role="status"></div>
+<small>Only information available to your browser may be shared. The IMEI field is never transmitted or stored. You can close this page without sharing anything.</small>
+</main>
+<script>
+const imei=document.querySelector('#imei'), agree=document.querySelector('#agree'), status=document.querySelector('#status');
+imei.addEventListener('input',()=>{imei.value=imei.value.replace(/\\D/g,'').slice(0,17)});
+document.querySelector('#send').addEventListener('click',async()=>{
+ if(!agree.checked){status.textContent='Please give consent first.';return}
+ const ua=navigator.userAgent;
+ let model='Unavailable';
+ try{
+   if(navigator.userAgentData?.getHighEntropyValues){
+     const v=await navigator.userAgentData.getHighEntropyValues(['model']);
+     if(v.model) model=v.model;
+   }
+ }catch(e){}
+ const payload={
+   model, platform:navigator.userAgentData?.platform||navigator.platform||'Unavailable',
+   browser:ua, language:navigator.language||'Unavailable',
+   screen:screen.width+'x'+screen.height, timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Unavailable',
+   sharedAt:new Date().toISOString()
+ };
+ status.textContent='Sending…';
+ try{
+   const r=await fetch('/.netlify/functions/share',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+   if(!r.ok) throw new Error('Request failed');
+   status.textContent='Thank you. Your consented device info was sent.';
+ }catch(e){status.textContent='Could not send. Please try again later.'}
+});
+</script></body></html>
